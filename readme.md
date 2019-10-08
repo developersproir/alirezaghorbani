@@ -1,40 +1,88 @@
-<p align="center"><img src="https://laravel.com/assets/img/components/logo-laravel.svg"></p>
+<?php
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/d/total.svg" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/v/stable.svg" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/license.svg" alt="License"></a>
-</p>
+namespace App\Http\Controllers\Admin;
 
-## About Laravel
+use App\Models\File;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Storage;
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable, creative experience to be truly fulfilling. Laravel attempts to take the pain out of development by easing common tasks used in the majority of web projects, such as:
+class FilesController extends Controller
+{
+    public function index()
+    {
+      $files=File::all();
+      return view('admin.files.list',compact('files'))->with(['files_activity'=>'uk-open','title_page'=>'All Product',
+          'detils_admin'=>'All Product Your Site.']);
+    }
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+    public function create()
+    {
+        return view('admin.files.create')->with(['files_activity'=>'uk-open','title_page'=>'Add New Product',
+            'detils_admin'=>'Add new Product Your Site.']);
+    }
+    public function store(Request $request)
+    {
+        $this->validate($request, [
+            'bir_file_title' => 'required',
+            'fileItem' => 'required'
+        ], [
+            'file_title.required' => 'وارد کردن نام فایل الزامی می باشد',
+            'fileItem.required' => 'انتخاب فایل الزامی می باشد.',
+        ]);
+        $new_file_data = [
+            'bir_file_title' => $request->input('bir_file_title'),
+            'bir_file_description' => $request->input('bir_file_description'),
+            'bir_file_type'   => $request->file('fileItem')->getMimeType(),
+            'bir_file_size'   => $request->file('fileItem')->getClientSize(),
+        ];
+        $new_file_name = str_random(45).'.'.$request->file('fileItem')->getClientOriginalExtension();
+        $result = $request->file('fileItem')->move(public_path('File'),$new_file_name);
+        if($result instanceof \Symfony\Component\HttpFoundation\File\File){
+            $new_file_data['bir_file_name'] = $new_file_name;
+            File::create($new_file_data);
+            return redirect()->route('admin.files.list')->with('success_product',true);
+        }
 
-Laravel is accessible, yet powerful, providing tools needed for large, robust applications. A superb combination of simplicity, elegance, and innovation give you tools you need to build any application with which you are tasked.
 
-## Learning Laravel
 
-Laravel has the most extensive and thorough documentation and video tutorial library of any modern web application framework. The [Laravel documentation](https://laravel.com/docs) is thorough, complete, and makes it a breeze to get started learning the framework.
+    }
+    public function edit(Request $request,$file_id)
+    {
+        $file_id = intval($file_id);
+        $fileItem=File::find($file_id);
+        return view('admin.files.edit',compact('fileItem'))->with(['files_activity'=>'uk-open','title_page'=>'Edit Product',
+            'detils_admin'=>'Edit Product and add to this site.']);
+    }
 
-If you're not in the mood to read, [Laracasts](https://laracasts.com) contains over 900 video tutorials on a range of topics including Laravel, modern PHP, unit testing, JavaScript, and more. Boost the skill level of yourself and your entire team by digging into our comprehensive video library.
+    public function update(Request $request,$file_id)
+    {
+        $file_id=intval($file_id);
 
-## Contributing
+        $fileItem =File::find($file_id);
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](http://laravel.com/docs/contributions).
+        $update_file = $fileItem->update([
+            'bir_file_title' => $request->input('bir_file_title'),
+            'bir_file_description' => $request->input('bir_file_description'),
+        ]);
 
-## Security Vulnerabilities
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell at taylor@laravel.com. All security vulnerabilities will be promptly addressed.
+        if($update_file){
+            return redirect()->route('admin.files.list')->with('success_product',true);
 
-## License
+        }
 
-The Laravel framework is open-sourced software licensed under the [MIT license](http://opensource.org/licenses/MIT).
+
+    }
+    public function remove(Request $request,$file_id)
+    {
+        $file_id = intval($file_id);
+        $fileItem=File::find($file_id);
+        if ($fileItem){
+            $fileItem->delete();
+            return redirect()->route('admin.files.list')->with('file_deleted','remove');
+        }
+    }
+
+
+}
